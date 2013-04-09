@@ -16,6 +16,7 @@ var temperaturesFile = bhpDataDir + '/temperatures.xml';
 var eventEmitter = new events.EventEmitter();
 var timers = [], weeklies = [], specials = [];
 var temperaturesSSE;
+var zonesSSE;
 var zones = [];
 var climates = {}, defaultClimate = 0;
 
@@ -122,6 +123,9 @@ function mkRoutinesSSE() {
         var switches = [{
             'time' : start
           , 'temp' : 'default' in z ? z['default'] : defaultClimate
+        }, {
+            'time' : end
+          , 'temp' : 'default' in z ? z['default'] : defaultClimate
         }];
 
         spans.forEach(function(r) {
@@ -191,6 +195,7 @@ async.parallel([
                     'name' : n.$.name
                 });
             });
+            zonesSSE = 'event: zones\ndata: ' + JSON.stringify(zones) + '\n\n';
             callback(null, null);
         });
     },
@@ -225,7 +230,6 @@ function watch(file, callback) {
     fs.watch(dir, function(e, f) {
         var t = fs.statSync(file).ino;
         if (t != inode) {
-            console.log([inode, t]);
             inode = t;
             callback();
         }
@@ -245,21 +249,26 @@ watch(temperaturesFile, function() {
 });
 
 http.createServer(function respond(req, res) {
+
+    function refreshRoutines(res) {
+        res.write(mkRoutinesSSE());
+        setTimeout(function() {
+            refreshRoutines(res);
+        }, 300000);
+    }
+
     if (req.url === "/") {
         res.writeHead(200, {'Content-Type': 'text/html'});
         res.end('<!doctype html>\n'
             + '<html doctype="html">\n'
-            + ' <head>\n'
-            + '     <link rel="stylesheet" href="bhpweb.css">\n'
-            + '     <script language="text/javascript" src="bhpweb-client.js"></script>\n'
-            + '     <title>bhpweburnator 3000</title>\n'
-            + ' </head>\n'
-            + ' <body>\n'
-            + '   <ul id="bhpweb">\n'
-            + zones.map(function (m) {
-                return '      <li id=' + m.id + '><heading>' + m.name + '</heading></li>\n' }
-              ).join('')
-            + '    </ul>\n'
+            + '  <head>\n'
+            + '    <link rel="stylesheet" href="bhpweb.css">\n'
+            + '    <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>\n'
+            + '    <script type="text/javascript" src="bhpweb-client.js"></script>\n'
+            + '    <title>bhpweburnator 3000</title>\n'
+            + '  </head>\n'
+            + '  <body>\n'
+            + '    <ul id="bhpweb"/>\n'
             + '  </body>\n'
             + '</html>\n');
     } else if (req.url === "/bhpweb.css") {
@@ -271,7 +280,9 @@ http.createServer(function respond(req, res) {
     } else if (req.url === "/bhpweb.events") {
         res.writeHead(200, {  'Content-Type' : 'text/event-stream'
                             , 'Cache-Control': 'no-cache'});
-        res.write(mkRoutinesSSE());
+        res.write('retry: 10000\n');
+        res.write(zonesSSE);
+        refreshRoutines(res);
         res.write(temperaturesSSE);
         eventEmitter.on('routines', function() {
             res.write(mkRoutinesSSE());
