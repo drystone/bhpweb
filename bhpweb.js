@@ -1,36 +1,276 @@
+var async = require('async');
 var http = require('http');
 var fs = require('fs');
+var events = require('events');
+var xml2js = require('xml2js');
+var argv = require('optimist').argv;
+var port = argv.p ? argv.p : 1337;
+var host = "n" in argv ? argv.n : 'localhost'; // '' or 0.0.0.0 for all
+if (host === '') host = '0.0.0.0';
 
-function respond(req, res) {
-  if (req.url === "/") {
-    res.writeHead(200, {'Content-Type': 'text/html'});
-    res.end('<!doctype html>\n'
-       + '<html doctype="html">\n'
-       + '	<head>\n'
-       + '		<link rel="stylesheet" href="bhpweb.css">\n'
-	   + '		<script language="text/javascript" src="bhpweb-client.js"></script>\n'
-       + '		<title>bhpweburnator 3000</title>\n'
-       + '	</head>\n'
-       + '	<body>\n'
-	   + '	  <div id="bhpweb">\n'
-	   + '    </div>\n'
-       + '  </body>\n'
-       + '</html>\n');
-  } else if (req.url === "/bhpweb.css") {
-    res.writeHead(200, {'Content-Type': 'text/css'});
-	res.end(fs.readFileSync("bhpweb.css"));
-  } else if (req.url === "/bhpweb-client.js") {
-    res.writeHead(200, {'Content-Type': 'text/javascript'});
-	res.end(fs.readFileSync("bhpweb-client.js"));
-  } else {
-    res.writeHead(404, {'Content-Type': 'text/html'});
-    res.write("<h1>404 Not Found</h1>");
-    res.end("The page you were looking for: " + req.url + " can not be found");
-  }
+var bhpConfigDir = argv.c ? argv.c : '.';
+var bhpDataDir = argv.d ? argv.d : '.';
+var routinesFile = bhpConfigDir + '/routines.xml';
+var temperaturesFile = bhpDataDir + '/temperatures.xml';
+
+var eventEmitter = new events.EventEmitter();
+var timers = [], weeklies = [], specials = [];
+var temperaturesSSE;
+var zones = [];
+var climates = {}, defaultClimate = 0;
+
+Date.prototype.getTimeS = function() { return Math.floor(this.getTime()/1000) }
+
+function duration(xsduration) {
+    // convert xs:duration to ms
+    // only does DHMS, +ve without ms
+    var cur = 0;
+    var seconds = 0;
+
+    for (var i = 0; i < xsduration.length; i++) {
+        switch (xsduration[i]) {
+        case 'P':
+        case 'T':
+            break;
+        case 'D':
+            cur *= 24;
+        case 'H':
+            cur *= 60;
+        case 'M':
+            cur *= 60;
+        case 'S':
+            seconds += cur;
+            cur = 0;
+            break;
+        default:
+            cur = cur * 10 + xsduration.charCodeAt(i) - '0'.charCodeAt(0);
+            break;
+        }
+    }
+    return seconds;
 }
 
-server = http.createServer(respond);
+function loadXml(file, parserOptions, onLoaded, eventName) {
+    var parser = new xml2js.Parser(parserOptions);
+    fs.readFile(file, function(err, data) {
+        parser.parseString(data, function (err, result) {
+            onLoaded(result);
+            if (eventName) eventEmitter.emit(eventName);
+        });
+    });
+}
 
-server.listen(1337, '');
+function mkRoutinesSSE() {
 
-console.log('Server running at http://127.0.0.1:1337/');
+    function mkr(rid, s, e) {
+        return {
+            'rid'     : rid,
+            'start'   : Math.max(s, start),
+            'end'     : Math.min(e, end)
+        };
+    }
+
+    var routines = [];
+    var start = new Date().getTimeS() - 24 * 60 * 60;
+    var end = start + 48 * 60 * 60;
+    var dayStart = new Date(start * 1000);
+    dayStart.setSeconds(0);
+    dayStart.setMinutes(0);
+    dayStart.setHours(0);
+    var weekStart = dayStart.getTimeS() - dayStart.getDay() * 24 * 60 * 60;
+    dayStart = dayStart.getTimeS();
+
+    var normalisedTimers = [];
+    for (var o = dayStart; o < end; o += 24 * 60 * 60) {
+        normalisedTimers = normalisedTimers.concat(timers.map(function(t) { return {
+            'rid'   : t.rid
+          , 'zid'   : t.zid
+          , 'start' : o + t.start
+          , 'end'   : o + t.end
+          , 'temp'  : t.temp
+        };}));
+    }
+
+    var spans = [];
+    weeklies.forEach(function(w) {
+        for (var o = weekStart; o < end; o += 7 * 24 * 60 * 60) {
+            var s = o + w.start;
+            var e = o + w.end;
+            if (e > start && s < end)
+                spans.push(mkr(w.rid, s, e));
+        }
+    });
+
+    specials.forEach(function(s) {
+        if (s.end > start && s.start < end)
+            spans.push(mkr(s.rid, s.start, s.end));
+    });
+
+    zones.forEach(function(z) {
+
+        function overlay(switches, start, end, temp) {
+            return switches.filter(function(s) { return s.time < start; })
+            .concat([{ 
+                'time' : start
+              , 'temp' : temp
+            }, { 
+                'time' : end
+              , 'temp' : switches.filter(function(s) { return s.time <= end }).pop().temp
+            }])
+            .concat(switches.filter(function(s) { return s.time > end; }));
+        }
+
+        var switches = [{
+            'time' : start
+          , 'temp' : 'default' in z ? z['default'] : defaultClimate
+        }];
+
+        spans.forEach(function(r) {
+            normalisedTimers.filter(function(t) {
+                return t.rid == r.rid && t.zid == z.id && t.end > start && t.start < end;
+            }).forEach(function(t) {
+                switches = overlay(switches, Math.max(start, t.start), Math.min(end, t.end), t.temp);
+            });
+        });
+        routines.push({'zone' : z.id, 'switches' : switches});
+    });
+    return 'event: routines\ndata: ' + JSON.stringify(routines) + '\n\n';
+}
+
+function loadRoutines(callback) {
+    loadXml(routinesFile, {'explicitArray' : true}, function(xml) {
+        timers = [];
+        xml['daily-routine'].forEach(function(n) {
+            n.timer.forEach(function(nn) {
+                timers.push({
+                    'rid'   : n['@'].id
+                  , 'zid'   : nn['@']['zone-id']
+                  , 'start' : duration(nn['@'].start)
+                  , 'end'   : duration(nn['@'].end)
+                  , 'temp'  : climates[nn['@']['climate-id']]
+                });
+            });
+        });
+        weeklies = [];
+        xml['weekly-routines'][0]['weekly-routine'].forEach(function(n) {
+            weeklies.push({
+                'rid'    : n['@']['routine-id'],
+                'start' : duration(n['@'].start),
+                'end'   : duration(n['@'].end)
+            });
+        });
+        specials = [];
+        xml['special-routines'][0]['special-routine'].forEach(function(n) {
+            specials.push({
+                'rid'   : n['@']['routine-id'],
+                'start' : new Date(n['@'].start).getTimeS(),
+                'end'   : new Date(n['@'].end).getTimeS()
+            });
+        });
+        callback();
+    });
+}
+
+function loadTemperatures(callback) {
+    loadXml(temperaturesFile, {}, function(xml) {
+        var temperatures = {};
+        xml.temperature.forEach(function(n) {
+            temperatures[n['@']['thermometer-id']] = n['#'];
+        });
+        temperaturesSSE = 'event: temperatures\ndata: ' + JSON.stringify(temperatures) + '\n\n';
+        callback();
+    });
+}
+
+async.parallel([
+    function(callback) {
+        loadXml(bhpConfigDir + '/zones.xml', {}, function(xml) {
+            zones = [];
+            xml.zone.forEach(function(n) {
+                zones.push({
+                    'id'   : n['@'].id,
+                    'name' : n['@'].name
+                });
+            });
+            callback(null, null);
+        });
+    },
+    function(callback) {
+        loadXml(bhpConfigDir + '/climates.xml', {}, function(xml) {
+            climates = {};
+            xml.climate.forEach(function(n) {
+                climates[n['@'].id] = n['@'].temperature;
+                if ('default' in n['@'])
+                    defaultClimate = n['@'].temperature;
+            });
+            callback(null, null);
+        });
+    },
+    function(callback) {
+        loadRoutines(function() {
+            callback(null, null);
+        });
+    },
+    function(callback) {
+        loadTemperatures(function() {
+            callback(null, null);
+        });
+    }
+]);
+
+fs.watch(routinesFile, function() {
+    loadRoutines(function() {
+        eventEmitter.emit('routines');
+    });
+});
+
+fs.watch(temperaturesFile, function() {
+    loadTemperatures(function() {
+        eventEmitter.emit('temperatures');
+    });
+});
+
+http.createServer(function respond(req, res) {
+    if (req.url === "/") {
+        res.writeHead(200, {'Content-Type': 'text/html'});
+        res.end('<!doctype html>\n'
+            + '<html doctype="html">\n'
+            + ' <head>\n'
+            + '     <link rel="stylesheet" href="bhpweb.css">\n'
+            + '     <script language="text/javascript" src="bhpweb-client.js"></script>\n'
+            + '     <title>bhpweburnator 3000</title>\n'
+            + ' </head>\n'
+            + ' <body>\n'
+            + '   <ul id="bhpweb">\n'
+            + zones.map(function (m) {
+                return '      <li id=' + m.id + '><heading>' + m.name + '</heading></li>\n' }
+              ).join('')
+            + '    </ul>\n'
+            + '  </body>\n'
+            + '</html>\n');
+    } else if (req.url === "/bhpweb.css") {
+        res.writeHead(200, {'Content-Type': 'text/css'});
+        res.end(fs.readFileSync("bhpweb.css"));
+    } else if (req.url === "/bhpweb-client.js") {
+        res.writeHead(200, {'Content-Type': 'text/javascript'});
+        res.end(fs.readFileSync("bhpweb-client.js"));
+    } else if (req.url === "/bhpweb.events") {
+        res.writeHead(200, {  'Content-Type' : 'text/event-stream'
+                            , 'Cache-Control': 'no-cache'});
+        res.write(mkRoutinesSSE());
+        res.write(temperaturesSSE);
+        eventEmitter.on('routines', function() {
+            res.write(mkRoutinesSSE());
+        });
+        eventEmitter.on('temperatures', function() {
+            res.write(temperaturesSSE);
+        });
+    } else {
+        res.writeHead(404, {'Content-Type': 'text/html'});
+        res.write("<h1>404 Not Found</h1>");
+        res.end("The page you were looking for [" + req.url + "] cannot be found.");
+    }
+}).listen(port, host);
+
+console.log('Server running at http://' + host + ':' + port);
+
