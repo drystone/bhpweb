@@ -217,13 +217,28 @@ async.parallel([
     }
 ]);
 
-fs.watch(routinesFile, function() {
+// wrap fs.watch to watch dir and detect inode changes for file
+// fs.watch watches an inode and stops triggering when new file is renamed over watched file
+function watch(file, callback) {
+    var dir = file.substring(0, file.lastIndexOf('/'));
+    var inode = fs.statSync(file).ino;
+    fs.watch(dir, function(e, f) {
+        var t = fs.statSync(file).ino;
+        if (t != inode) {
+            console.log([inode, t]);
+            inode = t;
+            callback();
+        }
+    });
+}
+
+watch(routinesFile, function() {
     loadRoutines(function() {
         eventEmitter.emit('routines');
     });
 });
 
-fs.watch(temperaturesFile, function() {
+watch(temperaturesFile, function() {
     loadTemperatures(function() {
         eventEmitter.emit('temperatures');
     });
