@@ -50,12 +50,11 @@ function duration(xsduration) {
     return seconds;
 }
 
-function loadXml(file, parserOptions, onLoaded, eventName) {
-    var parser = new xml2js.Parser(parserOptions);
+function loadXml(file, onLoaded) {
+    var parser = new xml2js.Parser();
     fs.readFile(file, function(err, data) {
         parser.parseString(data, function (err, result) {
             onLoaded(result);
-            if (eventName) eventEmitter.emit(eventName);
         });
     });
 }
@@ -138,33 +137,33 @@ function mkRoutinesSSE() {
 }
 
 function loadRoutines(callback) {
-    loadXml(routinesFile, {'explicitArray' : true}, function(xml) {
+    loadXml(routinesFile, function(xml) {
         timers = [];
-        xml['daily-routine'].forEach(function(n) {
+        xml.routines['daily-routine'].forEach(function(n) {
             n.timer.forEach(function(nn) {
                 timers.push({
-                    'rid'   : n['@'].id
-                  , 'zid'   : nn['@']['zone-id']
-                  , 'start' : duration(nn['@'].start)
-                  , 'end'   : duration(nn['@'].end)
-                  , 'temp'  : climates[nn['@']['climate-id']]
+                    'rid'   : n.$.id
+                  , 'zid'   : nn.$['zone-id']
+                  , 'start' : duration(nn.$.start)
+                  , 'end'   : duration(nn.$.end)
+                  , 'temp'  : climates[nn.$['climate-id']]
                 });
             });
         });
         weeklies = [];
-        xml['weekly-routines'][0]['weekly-routine'].forEach(function(n) {
+        xml.routines['weekly-routines'][0]['weekly-routine'].forEach(function(n) {
             weeklies.push({
-                'rid'    : n['@']['routine-id'],
-                'start' : duration(n['@'].start),
-                'end'   : duration(n['@'].end)
+                'rid'   : n.$['routine-id'],
+                'start' : duration(n.$.start),
+                'end'   : duration(n.$.end)
             });
         });
         specials = [];
-        xml['special-routines'][0]['special-routine'].forEach(function(n) {
+        xml.routines['special-routines'][0]['special-routine'].forEach(function(n) {
             specials.push({
-                'rid'   : n['@']['routine-id'],
-                'start' : new Date(n['@'].start).getTimeS(),
-                'end'   : new Date(n['@'].end).getTimeS()
+                'rid'   : n.$['routine-id'],
+                'start' : new Date(n.$.start).getTimeS(),
+                'end'   : new Date(n.$.end).getTimeS()
             });
         });
         callback();
@@ -172,10 +171,10 @@ function loadRoutines(callback) {
 }
 
 function loadTemperatures(callback) {
-    loadXml(temperaturesFile, {}, function(xml) {
+    loadXml(temperaturesFile, function(xml) {
         var temperatures = {};
-        xml.temperature.forEach(function(n) {
-            temperatures[n['@']['thermometer-id']] = n['#'];
+        xml.temperatures.temperature.forEach(function(n) {
+            temperatures[n.$['thermometer-id']] = n._;
         });
         temperaturesSSE = 'event: temperatures\ndata: ' + JSON.stringify(temperatures) + '\n\n';
         callback();
@@ -184,24 +183,24 @@ function loadTemperatures(callback) {
 
 async.parallel([
     function(callback) {
-        loadXml(bhpConfigDir + '/zones.xml', {}, function(xml) {
+        loadXml(bhpConfigDir + '/zones.xml', function(xml) {
             zones = [];
-            xml.zone.forEach(function(n) {
+            xml.zones.zone.forEach(function(n) {
                 zones.push({
-                    'id'   : n['@'].id,
-                    'name' : n['@'].name
+                    'id'   : n.$.id,
+                    'name' : n.$.name
                 });
             });
             callback(null, null);
         });
     },
     function(callback) {
-        loadXml(bhpConfigDir + '/climates.xml', {}, function(xml) {
+        loadXml(bhpConfigDir + '/climates.xml', function(xml) {
             climates = {};
-            xml.climate.forEach(function(n) {
-                climates[n['@'].id] = n['@'].temperature;
-                if ('default' in n['@'])
-                    defaultClimate = n['@'].temperature;
+            xml.climates.climate.forEach(function(n) {
+                climates[n.$.id] = n.$.temperature;
+                if ('default' in n.$)
+                    defaultClimate = n.$.temperature;
             });
             callback(null, null);
         });
