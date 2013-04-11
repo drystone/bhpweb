@@ -250,13 +250,6 @@ watch(temperaturesFile, function() {
 
 http.createServer(function respond(req, res) {
 
-    function refreshRoutines(res) {
-        res.write(mkRoutinesSSE());
-        setTimeout(function() {
-            refreshRoutines(res);
-        }, 300000);
-    }
-
     if (req.url === "/") {
         res.writeHead(200, {'Content-Type': 'text/html'});
         res.end('<!doctype html>\n'
@@ -278,18 +271,31 @@ http.createServer(function respond(req, res) {
         res.writeHead(200, {'Content-Type': 'text/javascript'});
         res.end(fs.readFileSync("bhpweb-client.js"));
     } else if (req.url === "/bhpweb.events") {
+        var closed = false;
+        function routinesCallback() { if (!closed) res.write(mkRoutinesSSE()); }
+        function temperaturesCallback() { if (!closed) res.write(temperaturesSSE); }
+        function refreshRoutines(res) {
+            if (!closed) { 
+                res.write(mkRoutinesSSE());
+                setTimeout(function() {
+                    refreshRoutines(res);
+                }, 300000);
+            }
+        }
+        res.on('close', function() {
+            res.end();
+            closed = true;
+            eventEmitter.removeListener('routines', routinesCallback);
+            eventEmitter.removeListener('temperatures', temperaturesCallback);
+        });
         res.writeHead(200, {  'Content-Type' : 'text/event-stream'
                             , 'Cache-Control': 'no-cache'});
         res.write('retry: 10000\n');
         res.write(zonesSSE);
         refreshRoutines(res);
         res.write(temperaturesSSE);
-        eventEmitter.on('routines', function() {
-            res.write(mkRoutinesSSE());
-        });
-        eventEmitter.on('temperatures', function() {
-            res.write(temperaturesSSE);
-        });
+        eventEmitter.on('routines', routinesCallback);
+        eventEmitter.on('temperatures', temperaturesCallback);
     } else {
         res.writeHead(404, {'Content-Type': 'text/html'});
         res.write("<h1>404 Not Found</h1>");
