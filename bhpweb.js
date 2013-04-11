@@ -19,7 +19,7 @@ var timers = [], weeklies = [], specials = [];
 var temperaturesSSE;
 var zonesSSE;
 var zones = [];
-var climates = {}, defaultClimate = 0;
+var zoneStates = {};
 
 Date.prototype.getTimeS = function() { return Math.floor(this.getTime()/1000) }
 
@@ -108,7 +108,6 @@ function mkRoutinesSSE() {
     });
 
     zones.forEach(function(z) {
-
         function overlay(switches, start, end, temp) {
             return switches.filter(function(s) { return s.time < start; })
             .concat([{ 
@@ -123,10 +122,10 @@ function mkRoutinesSSE() {
 
         var switches = [{
             'time' : start
-          , 'temp' : 'default' in z ? z['default'] : defaultClimate
+          , 'temp' : zoneStates[z.id].off
         }, {
             'time' : end
-          , 'temp' : 'default' in z ? z['default'] : defaultClimate
+          , 'temp' : zoneStates[z.id].off
         }];
 
         spans.forEach(function(r) {
@@ -145,15 +144,18 @@ function loadRoutines(callback) {
     loadXml(routinesFile, function(xml) {
         timers = [];
         xml.routines['daily-routine'].forEach(function(n) {
-            n.timer.forEach(function(nn) {
-                timers.push({
-                    'rid'   : n.$.id
-                  , 'zid'   : nn.$['zone-id']
-                  , 'start' : duration(nn.$.start)
-                  , 'end'   : duration(nn.$.end)
-                  , 'temp'  : climates[nn.$['climate-id']]
+            if ('timer' in n) {
+                n.timer.forEach(function(nn) {
+                    timers.push({
+                        'rid'   : n.$.id
+                      , 'zid'   : nn.$['zone-id']
+                      , 'start' : duration(nn.$.start)
+                      , 'end'   : duration(nn.$.end)
+                      , 'state' : nn.$.state
+                      , 'temp'  : zoneStates[nn.$['zone-id']][nn.$.state]
+                    });
                 });
-            });
+            }
         });
         weeklies = [];
         xml.routines['weekly-routines'][0]['weekly-routine'].forEach(function(n) {
@@ -190,24 +192,19 @@ async.parallel([
     function(callback) {
         loadXml(bhpConfigDir + '/zones.xml', function(xml) {
             zones = [];
+            zoneStates = {};
             xml.zones.zone.forEach(function(n) {
                 zones.push({
-                    'id'   : n.$.id,
-                    'name' : n.$.name
+                    'id'      : n.$.id
+                  , 'name'    : n.$.name
                 });
+                zoneStates[n.$.id] = {
+                    'off'     : n.$.off
+                  , 'standby' : n.$.standby
+                  , 'on'      : n.$.on
+                };
             });
             zonesSSE = 'event: zones\ndata: ' + JSON.stringify(zones) + '\n\n';
-            callback(null, null);
-        });
-    },
-    function(callback) {
-        loadXml(bhpConfigDir + '/climates.xml', function(xml) {
-            climates = {};
-            xml.climates.climate.forEach(function(n) {
-                climates[n.$.id] = n.$.temperature;
-                if ('default' in n.$)
-                    defaultClimate = n.$.temperature;
-            });
             callback(null, null);
         });
     },
