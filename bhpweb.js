@@ -19,7 +19,6 @@ var timers = [], weeklies = [], specials = [];
 var temperaturesSSE;
 var zonesSSE;
 var zones = [];
-var zoneStates = {};
 
 Date.prototype.getTimeS = function() { return Math.floor(this.getTime()/1000) }
 
@@ -88,7 +87,7 @@ function mkRoutinesSSE() {
           , 'zid'   : t.zid
           , 'start' : o + t.start
           , 'end'   : o + t.end
-          , 'temp'  : t.temp
+          , 'state' : t.state
         };}));
     }
 
@@ -108,31 +107,31 @@ function mkRoutinesSSE() {
     });
 
     zones.forEach(function(z) {
-        function overlay(switches, start, end, temp) {
+        function overlay(switches, start, end, state) {
             return switches.filter(function(s) { return s.time < start; })
             .concat([{ 
-                'time' : start
-              , 'temp' : temp
+                'time'  : start
+              , 'state' : state
             }, { 
-                'time' : end
-              , 'temp' : switches.filter(function(s) { return s.time <= end }).pop().temp
+                'time'  : end
+              , 'state' : switches.filter(function(s) { return s.time <= end }).pop().state
             }])
             .concat(switches.filter(function(s) { return s.time > end; }));
         }
 
         var switches = [{
-            'time' : start
-          , 'temp' : zoneStates[z.id].off
+            'time'  : start
+          , 'state' : 'off'
         }, {
-            'time' : end
-          , 'temp' : zoneStates[z.id].off
+            'time'  : end
+          , 'state' : 'off'
         }];
 
         spans.forEach(function(r) {
             normalisedTimers.filter(function(t) {
                 return t.rid == r.rid && t.zid == z.id && t.end > start && t.start < end;
             }).forEach(function(t) {
-                switches = overlay(switches, Math.max(start, t.start), Math.min(end, t.end), t.temp);
+                switches = overlay(switches, Math.max(start, t.start), Math.min(end, t.end), t.state);
             });
         });
         routines.push({'zone' : z.id, 'switches' : switches});
@@ -152,7 +151,6 @@ function loadRoutines(callback) {
                       , 'start' : duration(nn.$.start)
                       , 'end'   : duration(nn.$.end)
                       , 'state' : nn.$.state
-                      , 'temp'  : zoneStates[nn.$['zone-id']][nn.$.state]
                     });
                 });
             }
@@ -192,17 +190,14 @@ async.parallel([
     function(callback) {
         loadXml(bhpConfigDir + '/zones.xml', function(xml) {
             zones = [];
-            zoneStates = {};
             xml.zones.zone.forEach(function(n) {
                 zones.push({
                     'id'      : n.$.id
                   , 'name'    : n.$.name
-                });
-                zoneStates[n.$.id] = {
-                    'off'     : n.$.off
+                  , 'off'     : n.$.off
                   , 'standby' : n.$.standby
                   , 'on'      : n.$.on
-                };
+                });
             });
             zonesSSE = 'event: zones\ndata: ' + JSON.stringify(zones) + '\n\n';
             callback(null, null);
@@ -289,6 +284,7 @@ http.createServer(function respond(req, res) {
         res.writeHead(200, {  'Content-Type' : 'text/event-stream'
                             , 'Cache-Control': 'no-cache'});
         res.write('retry: 10000\n');
+    console.log(zonesSSE);
         res.write(zonesSSE);
         refreshRoutines(res);
         res.write(temperaturesSSE);

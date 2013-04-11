@@ -42,8 +42,16 @@ table {
     border-spacing: 0;
 }
 
-rect {
+rect.off {
     fill: blue;
+}
+
+rect.standby {
+    fill: green;
+}
+
+rect.on {
+    fill: orange;
 }
 
 .temp {
