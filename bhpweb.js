@@ -14,6 +14,7 @@ var routinesFile = bhpConfigDir + '/routines.xml';
 var temperaturesFile = bhpDataDir + '/temperatures.xml';
 
 var eventEmitter = new events.EventEmitter();
+eventEmitter.setMaxListeners(0); // diables 'too may listeners' warning
 var timers = [], weeklies = [], specials = [];
 var temperaturesSSE;
 var zonesSSE;
