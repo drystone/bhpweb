@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<temperatures>
+  <temperature device-id="10456CCB01080025" thermometer-id="sitting_room">15.775</temperature>
+  <temperature device-id="104570CB01080078" thermometer-id="so_bedroom">14.3125</temperature>
+  <temperature device-id="106F5DCB01080015" thermometer-id="bathroom">16.875</temperature>
+  <temperature device-id="289D433C02000057" thermometer-id="ja_bedroom">13.625</temperature>
+  <temperature device-id="28AB283C02000069" thermometer-id="loo">7.1875</temperature>
+  <temperature device-id="28914F3C0200000B" thermometer-id="utility">10.125</temperature>
+  <temperature device-id="280F543C020000A5" thermometer-id="back_passage">8.0625</temperature>
+  <temperature device-id="107C2BCB010800E6" thermometer-id="office">6.125</temperature>
+  <temperature device-id="28F05E3C0200004E" thermometer-id="tank_middle">65.4375</temperature>
+  <temperature device-id="28A23B3C020000CD" thermometer-id="tank_bottom">63.375</temperature>
+  <temperature device-id="2846393C020000BB" thermometer-id="tank_top">65.3125</temperature>
+  <temperature device-id="280F81240200000D" thermometer-id="dhw">52.9375</temperature>
+  <temperature device-id="108192130208009B" thermometer-id="solar">65.375</temperature>
+  <temperature device-id="9682" thermometer-id="kitchen">14.9682</temperature>
+  <temperature device-id="9696" thermometer-id="study">15.1554</temperature>
+</temperatures>
