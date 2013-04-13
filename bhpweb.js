@@ -371,7 +371,6 @@ http.createServer(function respond(req, res) {
         res.writeHead(200, {  'Content-Type' : 'text/event-stream'
                             , 'Cache-Control': 'no-cache'});
         res.write('retry: 10000\n');
-    console.log(zonesSSE);
         res.write(zonesSSE);
         refreshRoutines(res);
         res.write(temperaturesSSE);

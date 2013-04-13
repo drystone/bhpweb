@@ -4,12 +4,34 @@ $(function() {
     eventSource.addEventListener('zones', function(e) {
         var list = $('<ul id="bhpweb"/>');
         JSON.parse(e.data).forEach(function(z) {
+            var boostClicks = 0;
+            var boostTimer = null;
+            function boost(e) {
+                if (boostTimer) {
+                    clearTimeout(boostTimer);
+                    boostTimer = null;
+                }
+                if (++boostClicks == 4) {
+                    boostClicks = 0;
+                } else {
+                    boostTimer = setTimeout(function() {
+                        $.ajax('override', {
+                            data : {
+                                zid  : z.id
+                              , type : 'boost'
+                              , duration : [30, 60, 120][boostClicks - 1] * 60
+                            }, type : 'POST'
+                        });
+                        boostClicks = 0;
+                    }, 2000);
+                }
+            }
             var item = $('<li/>').attr('id', z.id)
             .data('temp', {'on' : z.on, 'standby' : z.standby, 'off' : z.off})
             .append($('<heading/>').append(z.name))
             .append($('<div/>').addClass('temp'))
             .append($('<div/>').addClass('timers'))
-            .append($('<button/>').addClass('boost').text('boost'))
+            .append($('<button/>').addClass('boost').text('boost').click(boost))
             .append($('<button/>').addClass('advance').text('advance'));
             list.append(item);
         });
