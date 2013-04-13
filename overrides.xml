@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<overrides>
+  <override type="boost" zone-id="kitchen" start="2013-03-21T16:00:00" end="2013-03-21T16:30:00"/>
+  <override type="boost" zone-id="bathroom" start="2013-04-13T15:10:25.961Z" end="2013-04-13T15:10:37.962Z"/>
+  <override type="boost" zone-id="bathroom" start="2013-04-13T15:10:34.305Z" end="2013-04-13T15:10:46.305Z"/>
+  <override type="boost" zone-id="bathroom" start="2013-04-13T15:11:34.654Z" end="2013-04-13T15:11:46.655Z"/>
+  <override type="boost" zone-id="bathroom" start="2013-04-13T15:11:44.086Z" end="2013-04-13T15:11:56.086Z"/>
+  <override type="boost" zone-id="bathroom" start="2013-04-13T15:11:48.279Z" end="2013-04-13T15:12:00.279Z"/>
+  <override type="boost" zone-id="bathroom" start="2013-04-13T15:11:48.764Z" end="2013-04-13T15:12:00.764Z"/>
+  <override type="advance" zone-id="bathroom" start="2013-04-13T15:12:02.782Z" end="2013-04-13T15:12:14.782Z"/>
+  <override type="boost" zone-id="kitchen" start="2013-04-13T15:12:30.339Z" end="2013-04-13T15:42:30.339Z"/>
+</overrides>
