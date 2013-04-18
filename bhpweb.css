@@ -54,6 +54,14 @@ rect.on {
     fill: orange;
 }
 
+rect.preboost {
+    fill: pink;
+}
+
+rect.boost {
+    fill: red;
+}
+
 .temp {
     position: absolute;
     left: 100px;
