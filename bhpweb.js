@@ -56,8 +56,8 @@ $(function() {
             .data('temp', {'on' : z.on, 'standby' : z.standby, 'off' : z.off})
             .append($('<heading/>').append(z.name))
             .append($('<div/>').addClass('temp'))
-            .append($('<div/>').addClass('timers'))
-            .append($('<button/>').addClass('boost').text('boost').click(boost));
+            .append($('<button/>').addClass('boost').text('boost').click(boost))
+            .append($('<div/>').addClass('timers'));
             list.append(item);
         });
         $('#bhpweb').replaceWith(list);
@@ -66,15 +66,18 @@ $(function() {
     eventSource.addEventListener('temperatures', function(e) {
         var temperatures = JSON.parse(e.data);
         for (var id in temperatures) {
-            $('#' + id + ' .temp').text(new Number(temperatures[id]).toFixed(1));
+            $('#' + id + ' .temp').text(new Number(temperatures[id]).toFixed(1) + '°');
         }
     });
 
     eventSource.addEventListener('routines', function(e) {
         JSON.parse(e.data).forEach(function(r) {
             timerStart = r.switches[0].time;
+            timerWidth = $('#' + r.zone).width() - $('#' + r.zone + ' button').outerWidth();
+            timerHeight = $('#' + r.zone + ' button').outerHeight();
+
             var preBoost = $('#' + r.zone + ' .timers').find('.preboost');
-            var svg = $('<svg height="20"/>');
+            var svg = $('<svg>').css('width', timerWidth).css('height', timerHeight);
             for (var s = r.switches[0].time, i = 1; i < r.switches.length; i++) {
                 svg.append(mkrect(r.switches[i-1].state, s, r.switches[i].time));
                 s = r.switches[i].time;
@@ -86,7 +89,7 @@ $(function() {
             else if (r.boost) {
                 svg.append(mkrect('boost', r.boost.start, r.boost.end));
             }
-            $('#' + r.zone + ' .timers').replaceWith($('<div/>').addClass('timers').append(svg));
+            $('#' + r.zone + ' .timers').replaceWith($('<div/>').addClass('timers').css('width', timerWidth).append(svg));
             pokeSVG(r.zone);
         });
     });
