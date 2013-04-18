@@ -1,3 +1,5 @@
+#!/usr/bin/js
+
 var async = require('async');
 var http = require('http');
 var qs = require('querystring');
@@ -23,7 +25,12 @@ var zonesSSE;
 var zones = [];
 var overrides = [];
 
-Date.prototype.getTimeS = function() { return Math.floor(this.getTime()/1000) }
+Date.prototype.getTimeS = function() { return Math.floor(this.getTime()/1000) };
+
+function ltnow() { // local time
+    var n = new Date();
+    return new Date(n.getTime() - n.getTimezoneOffset() * 60 * 1000);
+}
 
 function duration(xsduration) {
     // convert xs:duration to ms
@@ -74,13 +81,13 @@ function mkRoutinesSSE() {
     }
 
     var routines = [];
-    var now = new Date().getTimeS();
-    var start = now - 24 * 60 * 60;
-    var end = start + 48 * 60 * 60;
+    var now = ltnow().getTimeS();
+    var start = now;
+    var end = start + 6 * 60 * 60;
     var dayStart = new Date(start * 1000);
-    dayStart.setSeconds(0);
-    dayStart.setMinutes(0);
-    dayStart.setHours(0);
+    dayStart.setUTCSeconds(0);
+    dayStart.setUTCMinutes(0);
+    dayStart.setUTCHours(0);
     var weekStart = dayStart.getTimeS() - dayStart.getDay() * 24 * 60 * 60;
     dayStart = dayStart.getTimeS();
 
@@ -125,9 +132,9 @@ function mkRoutinesSSE() {
 
         function findOverride(type) {
             var o = overrides.filter(function(o) {
-                return o.zid == z.id && o.type == type && now >= o.start && now < o.end;
+                return o.zid == z.id && o.type == type;
             }).pop();
-            return o ? {
+            return (o && now >= o.start && now < o.end) ? {
                 start : o.start
               , end   : o.end
               , state : o.state
@@ -185,17 +192,17 @@ function loadRoutines(callback) {
         weeklies = [];
         xml.routines['weekly-routines'][0]['weekly-routine'].forEach(function(n) {
             weeklies.push({
-                rid   : n.$['routine-id'],
-                start : duration(n.$['start']),
-                end   : duration(n.$['end'])
+                rid   : n.$['routine-id']
+              , start : duration(n.$['start'])
+              , end   : duration(n.$['end'])
             });
         });
         specials = [];
         xml.routines['special-routines'][0]['special-routine'].forEach(function(n) {
             specials.push({
-                rid   : n.$['routine-id'],
-                start : new Date(n.$['start']).getTimeS(),
-                end   : new Date(n.$['end']).getTimeS()
+                rid   : n.$['routine-id']
+              , start : new Date(n.$['start']).getTimeS()
+              , end   : new Date(n.$['end']).getTimeS()
             });
         });
         callback();
@@ -323,20 +330,21 @@ http.createServer(function respond(req, res) {
                 var args = qs.parse(data);
                 var zid = args.zid;
                 var type = args.type;
+                var now = ltnow();
                 var duration = parseInt(args.duration);
-                if (duration > 0 && duration <= 6 * 60 * 60 
+                if (duration >= 0 && duration <= 6 * 60 * 60 
                 && (type == 'boost' || type == 'advance')
                 && zones.some(function(z) { return z.id == zid; })) {
                     loadXml(overridesFile, function(xml) {
                         function mko(t, z, s, e) {
-                            return '  <override type="' + t + '" zone-id="' + z + '" start="' + s + '" end="' + e + '"/>\n';
+                            return '  <override type="' + t + '" zone-id="' + z + '" start="' + s + '" end="' + e + '" state="on"/>\n';
                         }
                         var tmpFile = bhpDataDir + '/' + Math.random();
                         var overrides = '<?xml version="1.0"?>\n<overrides>\n'
                         + ('override' in xml.overrides ? xml.overrides.override.map(function(o) {
                             return mko(o.$['type'], o.$['zone-id'], o.$['start'], o.$['end']);
                         }).join('') : '')
-                        + mko(type, zid, new Date().toISOString(), new Date(new Date().getTime() + duration*1000).toISOString())
+                        + mko(type, zid, now.toISOString(), new Date(now.getTime() + duration * 1000).toISOString())
                         + '</overrides>\n';
                         fs.writeFile(tmpFile, overrides, function() {
                             fs.rename(tmpFile, overridesFile, function() {});
