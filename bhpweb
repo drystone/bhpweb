@@ -340,11 +340,13 @@ http.createServer(function respond(req, res) {
                             return '  <override type="' + t + '" zone-id="' + z + '" start="' + s + '" end="' + e + '" state="on"/>\n';
                         }
                         var tmpFile = bhpDataDir + '/' + Math.random();
+                        var start = now.toISOString().slice(0,-5);  // slice drops the milliseconds and 'Z' from end of ISO date
+                        var end = new Date(now.getTime() + duration * 1000).toISOString().slice(0,-5);
                         var overrides = '<?xml version="1.0"?>\n<overrides>\n'
                         + ('override' in xml.overrides ? xml.overrides.override.map(function(o) {
                             return mko(o.$['type'], o.$['zone-id'], o.$['start'], o.$['end']);
                         }).join('') : '')
-                        + mko(type, zid, now.toISOString(), new Date(now.getTime() + duration * 1000).toISOString())
+                        + mko(type, zid, start, end)
                         + '</overrides>\n';
                         fs.writeFile(tmpFile, overrides, function() {
                             fs.rename(tmpFile, overridesFile, function() {});
