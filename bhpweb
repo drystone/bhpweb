@@ -88,7 +88,7 @@ function mkRoutinesSSE() {
     dayStart.setUTCSeconds(0);
     dayStart.setUTCMinutes(0);
     dayStart.setUTCHours(0);
-    var weekStart = dayStart.getTimeS() - dayStart.getDay() * 24 * 60 * 60;
+    var weekStart = dayStart.getTimeS() - dayStart.getUTCDay() * 24 * 60 * 60;
     dayStart = dayStart.getTimeS();
 
     var normalisedTimers = [];
@@ -153,10 +153,12 @@ function mkRoutinesSSE() {
         };
 
         spans.forEach(function(r) {
+            var spanStart = Math.max(start, r.start);
+            var spanEnd = Math.min(end, r.end);
             normalisedTimers.filter(function(t) {
                 return t.rid == r.rid && t.zid == z.id && t.end > start && t.start < end;
             }).forEach(function(t) {
-                routine.switches = overlay(routine.switches, Math.max(start, t.start), Math.min(end, t.end), t.state);
+                routine.switches = overlay(routine.switches, Math.max(spanStart, t.start), Math.min(spanEnd, t.end), t.state);
             });
         });
 
@@ -307,7 +309,7 @@ http.createServer(function respond(req, res) {
             + '  <head>\n'
             + '    <link rel="stylesheet" href="bhpweb.css">\n'
             + '    <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>\n'
-            + '    <script type="text/javascript" src="bhpweb-client.js"></script>\n'
+            + '    <script type="text/javascript" src="bhpweb.js"></script>\n'
             + '    <title>bhpweburnator 3000</title>\n'
             + '  </head>\n'
             + '  <body>\n'
@@ -317,9 +319,9 @@ http.createServer(function respond(req, res) {
     } else if (req.url == "/bhpweb.css") {
         res.writeHead(200, {'Content-Type': 'text/css'});
         res.end(fs.readFileSync("bhpweb.css"));
-    } else if (req.url == "/bhpweb-client.js") {
+    } else if (req.url == "/bhpweb.js") {
         res.writeHead(200, {'Content-Type': 'text/javascript'});
-        res.end(fs.readFileSync("bhpweb-client.js"));
+        res.end(fs.readFileSync("bhpweb.js"));
     } else if (req.url == "/override") {
         if (req.method == 'POST') {
             var data = '';
