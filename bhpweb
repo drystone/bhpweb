@@ -156,9 +156,12 @@ function mkRoutinesSSE() {
             var spanStart = Math.max(start, r.start);
             var spanEnd = Math.min(end, r.end);
             normalisedTimers.filter(function(t) {
-                return t.rid == r.rid && t.zid == z.id && t.end > start && t.start < end;
+                return t.rid == r.rid && t.zid == z.id && t.end > spanStart && t.start < spanEnd;
             }).forEach(function(t) {
+                if (z.id=='so_bedroom') console.log([spanStart, spanEnd]);
+                if (z.id=='so_bedroom') console.log([t.start, t.end]);
                 routine.switches = overlay(routine.switches, Math.max(spanStart, t.start), Math.min(spanEnd, t.end), t.state);
+                if (z.id=='so_bedroom') console.log(routine.switches);
             });
         });
 
