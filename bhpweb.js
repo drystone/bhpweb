@@ -72,9 +72,10 @@ $(function() {
 
     eventSource.addEventListener('routines', function(e) {
         JSON.parse(e.data).forEach(function(r) {
+            timerStart = r.switches[0].time;
             var preBoost = $('#' + r.zone + ' .timers').find('.preboost');
             var svg = $('<svg height="20"/>');
-            for (var s = 0, i = 1; i < r.switches.length; i++) {
+            for (var s = r.switches[0].time, i = 1; i < r.switches.length; i++) {
                 svg.append(mkrect(r.switches[i-1].state, s, r.switches[i].time));
                 s = r.switches[i].time;
             }
@@ -87,7 +88,6 @@ $(function() {
             }
             $('#' + r.zone + ' .timers').replaceWith($('<div/>').addClass('timers').append(svg));
             pokeSVG(r.zone);
-            timerStart = r.switches[0].time;
         });
     });
 });
