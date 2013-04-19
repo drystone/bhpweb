@@ -82,6 +82,9 @@ $(function() {
                 svg.append(mkrect(r.switches[i-1].state, s, r.switches[i].time));
                 s = r.switches[i].time;
             }
+            var last = r.switches[r.switches.length-1];
+            svg.append(mkrect(last.state, last.time, timerStart + timerDuration));
+            
             if (preBoost.size()) {
                 preBoost.remove();
                 svg.append(preBoost);

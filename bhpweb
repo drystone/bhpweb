@@ -119,15 +119,22 @@ function mkRoutinesSSE() {
 
     zones.forEach(function(z) {
         function overlay(switches, start, end, state) {
-            return switches.filter(function(s) { return s.time < start; })
-            .concat([{ 
-                time  : start
-              , state : state
-            }, { 
+            var retState = switches.filter(function(s) { return s.time <= end }).pop().state;
+            var head = switches.filter(function(s) { return s.time < start; });
+            if (!head.length || head[head.length-1].state != state) {
+                head.push({ 
+                    time : start
+                  , state : state
+                });
+            }
+            head.push({ 
                 time  : end
-              , state : switches.filter(function(s) { return s.time <= end }).pop().state
-            }])
-            .concat(switches.filter(function(s) { return s.time > end; }));
+              , state : retState
+            });
+            var tail = switches.filter(function(s) { return s.time > end; });
+            if (tail.length && tail[0].state == retState)
+                tail.shift();
+            return head.concat(tail);
         }
 
         function findOverride(type) {
@@ -145,9 +152,6 @@ function mkRoutinesSSE() {
             zone     : z.id
           , switches : [{
                 time  : start
-              , state : 'off'
-            }, {
-                time  : end
               , state : 'off'
             }]
         };
