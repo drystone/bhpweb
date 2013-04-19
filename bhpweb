@@ -104,7 +104,7 @@ function mkRoutinesSSE() {
 
     var spans = [];
     weeklies.forEach(function(w) {
-        for (var o = weekStart; o < end; o += 7 * 24 * 60 * 60) {
+        for (var o = weekStart; o + w.start < end; o += 7 * 24 * 60 * 60) {
             var s = o + w.start;
             var e = o + w.end;
             if (e > start && s < end)
@@ -193,10 +193,14 @@ function loadRoutines(callback) {
         });
         weeklies = [];
         xml.routines['weekly-routines'][0]['weekly-routine'].forEach(function(n) {
+            var s = duration(n.$['start']);
+            var e = duration(n.$['end']);
+            if (s >= e)
+                s -= 7 * 24 * 60 * 60;
             weeklies.push({
                 rid   : n.$['routine-id']
-              , start : duration(n.$['start'])
-              , end   : duration(n.$['end'])
+              , start : s
+              , end   : e
             });
         });
         specials = [];
