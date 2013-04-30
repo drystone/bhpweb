@@ -14,6 +14,7 @@ if (host === '') host = '0.0.0.0';
 var bhpConfigDir = argv.c ? argv.c : '.';
 var bhpRunDir = argv.r ? argv.r : '.';
 var bhpDataDir = argv.d ? argv.d : '.';
+var bhpStaticDir = argv.s ? argv.s : '.';
 var temperaturesFile = bhpRunDir + '/temperatures.xml';
 var overridesFile = bhpDataDir + '/overrides.xml';
 
@@ -326,10 +327,10 @@ http.createServer(function respond(req, res) {
             + '</html>\n');
     } else if (req.url == "/bhpweb.css") {
         res.writeHead(200, {'Content-Type': 'text/css; charset=utf-8'});
-        res.end(fs.readFileSync("bhpweb.css"));
+        res.end(fs.readFileSync(bhpStaticDir + "/bhpweb.css"));
     } else if (req.url == "/bhpweb.js") {
         res.writeHead(200, {'Content-Type': 'text/javascript; charset=utf-8'});
-        res.end(fs.readFileSync("bhpweb.js"));
+        res.end(fs.readFileSync(bhpStaticDir + "/bhpweb.js"));
     } else if (req.url == "/override") {
         if (req.method == 'POST') {
             var data = '';
