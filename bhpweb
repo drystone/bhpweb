@@ -25,7 +25,7 @@ var events = require('events');
 var xml2js = require('xml2js');
 var argv = require('optimist').argv;
 var port = argv.p ? argv.p : 1337;
-var host = "n" in argv ? argv.n : 'localhost'; // '' or 0.0.0.0 for all
+var host = "4" in argv ? argv["4"] : 'localhost'; // '' or 0.0.0.0 for all
 if (host === '') host = '0.0.0.0';
 
 var bhpConfigDir = argv.c ? argv.c : '.';
