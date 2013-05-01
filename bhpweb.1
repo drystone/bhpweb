@@ -1,0 +1,37 @@
+.TH BHPWEB 1 "MARCH 2013" Linux "User Manuals"
+.SH NAME
+bhpweb \- web interface to the bhp very central heating system
+.SH SYNOPSIS
+.B bhpweb [-4
+.I address
+.B ] [-p
+.I port
+.B ] [-c
+.I bhpconfigdir
+.B ] [-d
+.I bhpdatadir
+.B ] [-r
+.I bhprundir
+.B ] [-s
+.I staticdir
+.B ]
+.SH DESCRIPTION
+.B bhpweb
+adds a simple html5 interface to the
+.BR bhp (1)
+heating system. It displays current temperatures for zones and offers simple controls to adjust your heating. The server is written in javascript and the web content is html5. The system makes use of server send events, html5 technology that is not universally supported by browsers.
+.SH OPTIONS
+.IP -4
+ip4 address for server to listen on (default localhost)
+.IP -p
+port to listen on (default 1337)
+.IP -c
+location of bhp's config files (default .)
+.IP -d
+location of bhp's temporary files (default .)
+.IP -r
+location of bhp's runtime files (default .)
+.IP -s
+location of static web content (default .)
+.SH AUTHOR
+John Hedges <john@drystone.co.uk>
