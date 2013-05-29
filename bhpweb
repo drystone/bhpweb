@@ -333,6 +333,7 @@ http.createServer(function respond(req, res) {
         res.end('<!doctype html>\n'
             + '<html doctype="html">\n'
             + '  <head>\n'
+            + '    <link rel="icon" type="image/x-icon" href="/favicon.ico">\n'
             + '    <link rel="stylesheet" href="bhpweb.css">\n'
             + '    <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>\n'
             + '    <script type="text/javascript" src="bhpweb.js"></script>\n'
@@ -348,6 +349,9 @@ http.createServer(function respond(req, res) {
     } else if (req.url == "/bhpweb.js") {
         res.writeHead(200, {'Content-Type': 'text/javascript; charset=utf-8'});
         res.end(fs.readFileSync(bhpStaticDir + "/bhpweb.js"));
+    } else if (req.url == "/favicon.ico") {
+        res.writeHead(200, {'Content-Type': 'image/x-icon'});
+        res.end(fs.readFileSync(bhpStaticDir + "/favicon.ico"));
     } else if (req.url == "/override") {
         if (req.method == 'POST') {
             var data = '';
