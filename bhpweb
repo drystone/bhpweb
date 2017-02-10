@@ -106,11 +106,12 @@ function mkRoutinesSSE() {
     dayStart.setUTCSeconds(0);
     dayStart.setUTCMinutes(0);
     dayStart.setUTCHours(0);
-    var weekStart = dayStart.getTimeS() - dayStart.getUTCDay() * 24 * 60 * 60;
-    dayStart = dayStart.getTimeS();
+    // week starts on monday morning (+6 % 7)
+    var weekStart = dayStart.getTimeS()
+                  - (dayStart.getUTCDay() + 6) % 7 * 24 * 60 * 60;
 
     var normalisedTimers = [];
-    for (var o = dayStart; o < end; o += 24 * 60 * 60) {
+    for (var o = dayStart.getTimeS(); o < end; o += 24 * 60 * 60) {
         normalisedTimers = normalisedTimers.concat(timers.map(function(t) { return {
             rid   : t.rid
           , zid   : t.zid
